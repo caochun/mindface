@@ -63,7 +63,7 @@ class MultiBoxLoss(nn.Cell):
         self.reduce_sum = P.ReduceSum()
         self.reduce_mean = P.ReduceMean()
         self.expand_dims = P.ExpandDims()
-        self.smooth_l1_loss = P.SmoothL1Loss()
+        self.smooth_l1_loss = nn.L1Loss()
         self.cross_entropy = SoftmaxCrossEntropyWithLogits()
         self.maximum = P.Maximum()
         self.minimum = P.Minimum()
