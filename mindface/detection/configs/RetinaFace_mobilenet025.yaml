@@ -2,7 +2,7 @@
 
 # model
 'name' : 'MobileNet025'
-'device_target': "GPU"
+'device_target': "Ascent"
 'variance': [0.1, 0.2]
 'clip': False
 'loc_weight': 2.0
@@ -19,6 +19,7 @@
 'num_classes' : 2
 "mode" : 'Graph'
 'grad_clip': False
+'nnpu': 1
 
 # opt
 'optim': 'sgd'

@@ -33,7 +33,7 @@ from runner import read_yaml, TrainingWrapper
 
 def train(cfg):
     """train"""
-    mindspore.common.seed.set_seed(cfg['seed'])
+    mindspore.set_seed(cfg['seed'])
 
     if cfg['mode'] == 'Graph':
         context.set_context(mode=context.GRAPH_MODE, device_target=cfg['device_target'])
@@ -51,7 +51,7 @@ def train(cfg):
             rank = get_rank()
             print(f"The rank ID of current device is {rank}.")
         else:
-            context.set_context(device_id=cfg['device_id'])
+            mindspore.set_device("Ascend")
     elif cfg['device_target'] == "GPU":
         if cfg['ngpu'] > 1:
             init("nccl")

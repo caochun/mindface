@@ -3,7 +3,7 @@
 # model
 'name': 'ResNet50'
 'mode': 'Graph'
-'device_target': "GPU"
+'device_target': "Ascent"
 'variance': [0.1,0.2]
 'clip': False
 'loc_weight': 2.0
@@ -12,7 +12,7 @@
 'batch_size': 16
 'num_workers': 1
 'num_anchor': 29126
-'nnpu': 8
+'nnpu': 1
 'ngpu': 1
 'image_size': 840
 'in_channel': 256

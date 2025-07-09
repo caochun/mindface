@@ -102,10 +102,13 @@ def read_dataset(img_path, annotation):
     """
     cv2.setNumThreads(2)
 
-    if isinstance(img_path, str):
-        img = cv2.imread(img_path)
-    else:
-        img = cv2.imread(img_path.tostring().decode("utf-8"))
+    img = cv2.imread(str(img_path))
+    # if isinstance(img_path, str):
+    #     img = cv2.imread(img_path)
+    # else:
+    #     img = cv2.imread(img_path.tostring().decode("utf-8"))
+
+        # raise ValueError("Debug " +img.)
 
     labels = annotation
     anns = np.zeros((0, 15))
@@ -199,22 +202,24 @@ def create_dataset(data_dir, variance=None, match_thresh=0.35, image_size=640, c
 
     de_dataset = de_dataset.map(input_columns=["image", "annotation"],
                                 output_columns=["image", "annotation"],
-                                column_order=["image", "annotation"],
                                 operations=read_data_from_dataset,
                                 python_multiprocessing=multiprocessing,
                                 num_parallel_workers=num_worker)
+    de_dataset = de_dataset.project (["image", "annotation"])
+
     de_dataset = de_dataset.map(input_columns=["image", "annotation"],
                                 output_columns=["image", "annotation"],
-                                column_order=["image", "annotation"],
                                 operations=augmentation,
                                 python_multiprocessing=multiprocessing,
                                 num_parallel_workers=num_worker)
+    de_dataset = de_dataset.project (["image", "annotation"])
+
     de_dataset = de_dataset.map(input_columns=["image", "annotation"],
                                 output_columns=["image", "truths", "conf", "landm"],
-                                column_order=["image", "truths", "conf", "landm"],
                                 operations=encode_data,
                                 python_multiprocessing=multiprocessing,
                                 num_parallel_workers=num_worker)
+    de_dataset = de_dataset.project (["image", "truths", "conf", "landm"])
 
     de_dataset = de_dataset.batch(batch_size, drop_remainder=True)
     de_dataset = de_dataset.repeat(repeat_num)
