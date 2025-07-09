@@ -2,7 +2,7 @@
 
 # model
 'name' : 'MobileNet025'
-'device_target': "Ascent"
+'device_target': "Ascend"
 'variance': [0.1, 0.2]
 'clip': False
 'loc_weight': 2.0
