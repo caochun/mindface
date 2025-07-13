@@ -4,8 +4,8 @@ face_dataset
 import os
 import mindspore.common.dtype as mstype
 import mindspore.dataset.engine as de
-import mindspore.dataset.vision.c_transforms as C
-import mindspore.dataset.transforms.c_transforms as C2
+import mindspore.dataset.vision as C
+import mindspore.dataset.transforms as C2
 from mindspore.communication.management import init, get_rank, get_group_size
 
 __all__=["create_dataset"]

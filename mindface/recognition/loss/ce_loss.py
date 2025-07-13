@@ -45,7 +45,7 @@ class SoftMaxCE(nn.Cell):
 
         softmax_result_log = self.log(logits_exp + self.eps)
         loss = self.sum((self.mul(softmax_result_log, label)), -1)
-        loss = self.mul(ops.scalar_to_array(-1.0), loss)
+        loss = self.mul(Tensor(-1.0, mstype.float32), loss)
         loss_v = self.mean(loss, 0)
 
         return loss_v
