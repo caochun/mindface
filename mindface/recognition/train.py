@@ -49,7 +49,7 @@ if __name__ == "__main__":
     print(args, train_info)
 
     if args.running_mode == "GRAPH":
-        DATASET_SINK_MODE = True
+        DATASET_SINK_MODE = False
         context.set_context(mode=context.GRAPH_MODE,
                             device_target=args.device_target, save_graphs=False)
     elif args.running_mode == "PYNATIVE":

@@ -20,6 +20,7 @@ echo "==========================================================================
 
 export CONFIG=$1
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+export RANK_SIZE=1
 
 python train.py --device_target 'Ascend' --config $1 --batch_size 64
 

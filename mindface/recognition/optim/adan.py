@@ -4,13 +4,12 @@ adan
 from __future__ import absolute_import
 
 from mindspore.common import dtype as mstype
-from mindspore.common.api import ms_function
 from mindspore.ops import operations as P
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.common.tensor import Tensor
-from mindspore._checkparam import Validator as validator
-from mindspore._checkparam import Rel
+# from mindspore._checkparam import Validator as validator
+# from mindspore._checkparam import Rel
 from mindspore.nn.optim.optimizer import Optimizer
 from mindspore.nn.optim.optimizer import opt_init_args_register
 
@@ -89,16 +88,16 @@ def _update_run_op(beta1, beta2, beta3, eps, lr, weight_decay, param, m, v, n,\
     return op_cast(next_param, F.dtype(param))
 
 
-def _check_param_value(beta1, beta2, eps, prim_name):
-    """
-    Check the type of inputs.
-    """
-    validator.check_value_type("beta1", beta1, [float], prim_name)
-    validator.check_value_type("beta2", beta2, [float], prim_name)
-    validator.check_value_type("eps", eps, [float], prim_name)
-    validator.check_float_range(beta1, 0.0, 1.0, Rel.INC_NEITHER, "beta1", prim_name)
-    validator.check_float_range(beta2, 0.0, 1.0, Rel.INC_NEITHER, "beta2", prim_name)
-    validator.check_positive_float(eps, "eps", prim_name)
+# def _check_param_value(beta1, beta2, eps, prim_name):
+#     """
+#     Check the type of inputs.
+#     """
+#     validator.check_value_type("beta1", beta1, [float], prim_name)
+#     validator.check_value_type("beta2", beta2, [float], prim_name)
+#     validator.check_value_type("eps", eps, [float], prim_name)
+#     validator.check_float_range(beta1, 0.0, 1.0, Rel.INC_NEITHER, "beta1", prim_name)
+#     validator.check_float_range(beta2, 0.0, 1.0, Rel.INC_NEITHER, "beta2", prim_name)
+#     validator.check_positive_float(eps, "eps", prim_name)
 
 
 class Adan(Optimizer):
@@ -126,7 +125,6 @@ class Adan(Optimizer):
         self.weight_decay = Tensor(weight_decay, mstype.float32)
 
 
-    @ms_function
     def construct(self, gradients):
         """
         construct.
