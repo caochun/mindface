@@ -41,6 +41,7 @@ def infer(cfg):
     # load checkpoint
     assert cfg['val_model'] is not None, 'val_model is None.'
     param_dict = load_checkpoint(cfg['val_model'])
+    assert param_dict is not None, f'Load {cfg["val_model"]} failed.'
     print(f"Load trained model done. {cfg['val_model']}")
     network.init_parameters_data()
     load_param_into_net(network, param_dict)
