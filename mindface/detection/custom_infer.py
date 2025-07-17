@@ -15,6 +15,7 @@
 import argparse
 import numpy as np
 import cv2
+import os
 
 from mindspore import Tensor, context
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
@@ -92,23 +93,36 @@ def infer(cfg):
     boxes = detection.infer(boxes, confs, resize, scale, priors)
     img_each = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
-    for box in boxes:
-        if box[4] > conf_test:
-            cv2.rectangle(img_each,(int(box[0]),int(box[1])),
-                (int(box[0])+int(box[2]),int(box[1])+int(box[3])),color=(0,0,255))
-            cv2.putText(img_each,str(round(box[4],5)),(int(box[0]),int(box[1])),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255), 1)
-    save_path = image_path.split('.')[0]+'_pred.jpg'
-    cv2.imwrite(save_path,img_each)
-    print(f'Result saving: {save_path}')
+    H, W = img_each.shape[:2]
+    crop_count = 1
+    box = boxes[0]
+    if box[4] > conf_test:
+        x, y, w, h = map(int, box[:4])
+
+        # 边界裁剪，防止越界
+        x = max(0, x)
+        y = max(0, y)
+        x2 = min(W, x + w)
+        y2 = min(H, y + h)
+
+        crop = img_each[y:y2, x:x2]
+
+        crop_path = f"{os.path.basename(image_path).split('.')[0]}_crop_{crop_count}.jpg"
+        cv2.imwrite(crop_path, crop)
+        print(f"[✓] Cropped face saved: {crop_path}")
+    else:
+        print("No found face, please confirm your image is right.")
+        return None
+    return crop_path
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='infer')
-    parser.add_argument('--config', default='mindface/detection/configs/RetinaFace_mobilenet025.yaml', type=str,
+    parser.add_argument('--config', default='/home/fangwy/mindface/mindface/detection/configs/RetinaFace_mobilenet025.yaml', type=str,
                         help='configs path')
-    parser.add_argument('--checkpoint', type=str, default='',
+    parser.add_argument('--checkpoint', type=str, default='/home/fangwy/pretrained/Fix_RetinaFace_MobileNet025.ckpt',
                         help='checpoint path')
-    parser.add_argument('--image_path', type=str, default='test/detection/imgs/0000.jpg',
+    parser.add_argument('--image_path', type=str, default='/home/fangwy/mindface/test/detection/imgs/0000.jpg',
                         help='image path')
     parser.add_argument('--conf', type=float, default=0.5,
                         help='confidence of bbox')
