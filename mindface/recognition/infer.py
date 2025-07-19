@@ -7,8 +7,10 @@ from PIL import Image
 import numpy as np
 import mindspore as ms
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
-
+from mindspore import context
 from .models import iresnet50, iresnet100, get_mbf, vit_t, vit_s, vit_b, vit_l
+
+context.set_context(mode=context.GRAPH_MODE, device_target="Ascend")
 
 def infer(img, backbone="iresnet50", num_features=512, pretrained=False):
     """

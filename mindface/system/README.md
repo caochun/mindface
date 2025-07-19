@@ -16,9 +16,14 @@ python system/main.py
 `Fix_RetinaFace_MobileNet025.ckpt`为detection模型，对应的yaml文件为`mindface/mindface/detection/configs/RetinaFace_MobileNet025.yaml`；
 `mobile_casia_ArcFace.ckpt`为recognition模型
 
-目前三种接口的测试：
+目前提供的六种接口：
 ````bash
-image_base64=$(base64 -w 0 data/train_data/casia-webface/0/Figure_0.png)
+image_base64=$(base64 -w 0 data/WiderFace/train/images/6--Funeral/6_Funeral_Funeral_6_417.jpg)
+curl -X POST "http://localhost:5000/create" \
+   -H "Content-Type: application/json" \
+   -d '{"img": "'"$image_base64"'",
+      "params":{"id":"AA","reponame":"test"}}'
+
 curl -X POST "http://localhost:5000/register" \
    -H "Content-Type: application/json" \
    -d '{"img": "'"$image_base64"'",
@@ -30,6 +35,16 @@ curl -X POST "http://localhost:5000/recognize" \
       "params":{"id":"AA","reponame":"test"}}'
 
 curl -X POST "http://localhost:5000/recognizeN" \
+   -H "Content-Type: application/json" \
+   -d '{"img": "'"$image_base64"'",
+      "params":{"id":"AA","reponame":"test"}}'
+
+curl -X POST "http://localhost:5000/update" \
+   -H "Content-Type: application/json" \
+   -d '{"img": "'"$image_base64"'",
+      "params":{"id":"AA","reponame":"test"}}'
+
+curl -X POST "http://localhost:5000/delete" \
    -H "Content-Type: application/json" \
    -d '{"img": "'"$image_base64"'",
       "params":{"id":"AA","reponame":"test"}}'
