@@ -8,7 +8,7 @@ import numpy as np
 import mindspore as ms
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
-from models import iresnet50, iresnet100, get_mbf, vit_t, vit_s, vit_b, vit_l
+from .models import iresnet50, iresnet100, get_mbf, vit_t, vit_s, vit_b, vit_l
 
 def infer(img, backbone="iresnet50", num_features=512, pretrained=False):
     """

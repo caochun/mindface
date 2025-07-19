@@ -57,7 +57,7 @@ def infer(cfg):
 
     # testing begin
     print('Predict box starting')
-
+    print(image_path)
     img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
     img = np.float32(img_raw)
 
@@ -96,24 +96,25 @@ def infer(cfg):
     H, W = img_each.shape[:2]
     crop_count = 1
     box = boxes[0]
-    if box[4] > conf_test:
-        x, y, w, h = map(int, box[:4])
+    crop_paths = []
+    for box in boxes:
+        if box[4] > conf_test:
+            x, y, w, h = map(int, box[:4])
 
-        # 边界裁剪，防止越界
-        x = max(0, x)
-        y = max(0, y)
-        x2 = min(W, x + w)
-        y2 = min(H, y + h)
+            # 边界裁剪，防止越界
+            x = max(0, x)
+            y = max(0, y)
+            x2 = min(W, x + w)
+            y2 = min(H, y + h)
 
-        crop = img_each[y:y2, x:x2]
+            crop = img_each[y:y2, x:x2]
 
-        crop_path = f"{os.path.basename(image_path).split('.')[0]}_crop_{crop_count}.jpg"
-        cv2.imwrite(crop_path, crop)
-        print(f"[✓] Cropped face saved: {crop_path}")
-    else:
-        print("No found face, please confirm your image is right.")
-        return None
-    return crop_path
+            crop_path = f"{os.path.basename(image_path).split('.')[0]}_crop_{crop_count}.jpg"
+            cv2.imwrite(crop_path, crop)
+            print(f"[✓] Cropped face saved: {crop_path}")
+            crop_count += 1
+            crop_paths.append(crop_path)
+    return crop_paths
 
 
 if __name__ == '__main__':
