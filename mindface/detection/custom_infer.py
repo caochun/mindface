@@ -24,28 +24,8 @@ from .utils import prior_box
 from .models import RetinaFace, resnet50, mobilenet025
 from .runner import DetectionEngine, read_yaml
 
-def infer(cfg):
+def infer(cfg, network):
     """test one image"""
-    if cfg['mode'] == 'Graph':
-        context.set_context(mode=context.GRAPH_MODE, device_target=cfg['device_target'])
-    else :
-        context.set_context(mode=context.PYNATIVE_MODE, device_target = cfg['device_target'])
-
-    if cfg['name'] == 'ResNet50':
-        backbone = resnet50(1001)
-    elif cfg['name'] == 'MobileNet025':
-        backbone = mobilenet025(1000)
-    network = RetinaFace(phase='predict',backbone=backbone,in_channel=cfg['in_channel'],out_channel=cfg['out_channel'])
-    backbone.set_train(False)
-    network.set_train(False)
-
-    # load checkpoint
-    assert cfg['val_model'] is not None, 'val_model is None.'
-    param_dict = load_checkpoint(cfg['val_model'])
-    print(f"Load trained model done. {cfg['val_model']}")
-    network.init_parameters_data()
-    load_param_into_net(network, param_dict)
-
     # testing image
 
     conf_test = cfg['conf']
