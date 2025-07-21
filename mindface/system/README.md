@@ -5,12 +5,13 @@ pip install -r mindface/mindface/system/requirement.txt
 cd mindface/mindface
 python system/main.py
 
-用户需要根据自身模型存储位置修改`get_embedding`函数中的信息：
+用户需要根据自身模型存储位置修改`main.py`的信息：
 ````python
     detection_config = read_yaml("detection模型对应的yaml文件路径")
     detection_config['val_model'] = "detection模型路径"
     recognition_config["pretrained"] = "recognition模型路径"
 ````
+暂时只支持mobilenet与mobilefacenet作为检测与识别模型。
 
 模型下载连接：https://box.nju.edu.cn/d/a6a31ba02142470baabc/
 `Fix_RetinaFace_MobileNet025.ckpt`为detection模型，对应的yaml文件为`mindface/mindface/detection/configs/RetinaFace_MobileNet025.yaml`；
