@@ -14,6 +14,8 @@ from recognition.models import iresnet50, iresnet100, get_mbf, vit_t, vit_s, vit
 from recognition.custom_infer import infer as recognition_infer
 from detection.runner import read_yaml
 from es import FaceEmbeddingES
+from milvus import FaceEmbeddingMilvus
+from running_code import RunningCode
 import numpy as np
 import time
 from flask import Flask, request, jsonify
@@ -53,15 +55,21 @@ def save_base64_to_jpg(base64_str, output_path):
         print(f"保存失败: {str(e)}")
         return False
 
-def get_embedding(image_path):
+def get_embedding(image_path, return_location=False):
     detection_config['image_path'] = image_path
     recognition_config = {}
     
-    face_img_paths = detection_infer(detection_config, detection_network)
-    if len(face_img_paths) == 0:
-        return None
+    face_results = detection_infer(detection_config, detection_network, return_location)
+    if len(face_results) == 0:
+        return []
     batch_images = []
-    for face_img_path in face_img_paths:
+    face_locations = []
+    for face_result in face_results:
+        if return_location:
+            face_img_path = face_result['crop_path']
+            face_locations.append(face_result['location'])
+        else:
+            face_img_path = face_result
         image_np = cv2.imread(face_img_path)
         image_np = cv2.resize(image_np, (112, 112))
         image_np = np.transpose(image_np, (2, 0, 1))
@@ -71,8 +79,18 @@ def get_embedding(image_path):
     
     if batch_images:
         batch_array = np.stack(batch_images, axis=0)
-    embeddings = recognition_infer(image_np,recognition_network)
-    return embeddings
+    embeddings = recognition_infer(batch_array,recognition_network)
+    
+    if return_location:
+        results = []
+        for i, embedding in enumerate(embeddings):
+            results.append({
+                'embedding': embedding,
+                'location':face_locations[i]
+            })
+        return results
+    else:            
+        return embeddings
 
 # 创建人脸库
 @app.route('/create', methods=['POST'])
@@ -81,22 +99,22 @@ def create_face_store():
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     params = json_list['params']
     if params.get('reponame',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     reponame = params['reponame']
-    code = face_es.create_face_store(reponame)
+    code = face_db.create_face_store(reponame)
     if code.value == 0:
         return jsonify({
             'status': 'success',
-            'Code': 0,
+            'Code': code.value,
             'Message': f'Success Create {reponame}'
         }), 200
     else:
@@ -114,27 +132,27 @@ def register_face():
     if 'img' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1002,
+            'Code': RunningCode.MISSING_FILE.value,
             'Message': '缺少图片'
         }), 404
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     image = json_list['img']
     params = json_list['params']
-    if params.get('id',None) is None:
+    if params.get('id',None) is None or params['id'] == '':
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数id'
         }), 404
-    if params.get('reponame',None) is None:
+    if params.get('reponame',None) is None or params['reponame'] == '':
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     identity = params['id']
@@ -142,22 +160,27 @@ def register_face():
 
     # 保存临时文件用于检测模型
     temp_path = os.path.join(UPLOAD_FOLDER, "temp_face.jpg")
-    save_base64_to_jpg(image, temp_path)
+    if image == "" or not save_base64_to_jpg(image, temp_path):
+        return jsonify({
+            'status': 'error',
+            'Code': RunningCode.MISSING_FILE.value,
+            'Message': '缺少图片'
+        }), 404
 
     embeddings = get_embedding(temp_path)
     if os.path.exists(temp_path):
         os.remove(temp_path)
-    if embeddings is None:
+    if len(embeddings) == 0:
         return jsonify({
             'status': 'error',
-            'Code': 1008,
+            'Code': RunningCode.POOR_FACE_QUALITY.value,
             'Message': '注册失败！人脸质量差'
         }), 404
-    code = face_es.register_face(identity, embeddings[0], reponame)
-    if code.value == 0:
+    code = face_db.register_face(identity, embeddings[0], reponame)
+    if code == RunningCode.SUCCESS:
         return jsonify({
             'status': 'success',
-            'Code': 0,
+            'Code': code.value,
             'Message': f'ID: {identity} Register to {reponame}'
         }), 200
     else:
@@ -174,25 +197,25 @@ def delete_face():
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     params = json_list['params']
     if params.get('id',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数id'
         }), 404
     if params.get('reponame',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     identity = params['id']
     reponame = params['reponame']
-    code = face_es.delete_face(identity, reponame)
+    code = face_db.delete_face(identity, reponame)
     if code.value == 0:
         return jsonify({
             'status': 'success',
@@ -213,13 +236,13 @@ def update_face():
     if 'img' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1002,
+            'Code': RunningCode.MISSING_FILE.value,
             'Message': '缺少图片'
         }), 404
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     image = json_list['img']
@@ -227,13 +250,13 @@ def update_face():
     if params.get('id',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数id'
         }), 404
     if params.get('reponame',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     identity = params['id']
@@ -241,22 +264,27 @@ def update_face():
 
     # 保存临时文件用于检测模型
     temp_path = os.path.join(UPLOAD_FOLDER, "temp_face.jpg")
-    save_base64_to_jpg(image,temp_path)
+    if image == "" or not save_base64_to_jpg(image, temp_path):
+        return jsonify({
+            'status': 'error',
+            'Code': RunningCode.MISSING_FILE.value,
+            'Message': '缺少图片'
+        }), 404
 
     embeddings = get_embedding(temp_path)
     if os.path.exists(temp_path):
         os.remove(temp_path)
-    if embeddings is None:
+    if len(embeddings) == 0:
         return jsonify({
             'status': 'error',
-            'Code': 1008,
+            'Code': RunningCode.POOR_FACE_QUALITY.value,
             'Message': '更新失败！人脸质量差'
         }), 404
-    code = face_es.update_face(identity, embeddings[0], reponame)
-    if code.value == 0:
+    code = face_db.update_face(identity, embeddings[0], reponame)
+    if code == RunningCode.SUCCESS:
         return jsonify({
             'status': 'success',
-            'Code': 0,
+            'Code': code.value,
             'Message': f'更新成功'
         }), 200
     else:
@@ -273,26 +301,26 @@ def recognize_face():
     if 'img' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1002,
+            'Code': RunningCode.MISSING_FILE.value,
             'Message': '缺少图片'
         }), 404
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     params = json_list['params']
     if params.get('id',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数id'
         }), 404
     if params.get('reponame',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     image = json_list['img']
@@ -301,23 +329,37 @@ def recognize_face():
     reponame = params['reponame']
     # 保存临时文件用于检测模型
     temp_path = os.path.join(UPLOAD_FOLDER, "temp_face.jpg")
-    save_base64_to_jpg(image,temp_path)
-    
+    if image == "" or not save_base64_to_jpg(image, temp_path):
+        return jsonify({
+            'status': 'error',
+            'Code': RunningCode.MISSING_FILE.value,
+            'Message': '缺少图片'
+        }), 404
     query_embs = get_embedding(temp_path)
     if os.path.exists(temp_path):
         os.remove(temp_path)
+    
+    error_code = -1
     for query_emb in query_embs:
-        code, results = face_es.search_similar_faces(query_emb, reponame, 1)
-        if code.value == 0 and results[0]['id'] == identity:
+        code, result = face_db.recognize_face(identity, query_emb, reponame, threshold)
+        if code == RunningCode.SUCCESS and result['id'] == identity:
             return jsonify({
                 'status': 'success',
-                'Code': 0,
-                'Confidence': results[0]['similarity'],
+                'Code': code.value,
+                'Confidence': result['similarity'],
                 'Message': 'Success'
             }), 200
+        elif code == RunningCode.FACE_STORE_NOT_EXISTS:
+            error_code = code.value
+            break
+        elif code == RunningCode.ID_NOT_FOUND:
+            error_code = code.value
+            break
+    if len(query_embs) == 0:
+        error_code = RunningCode.NO_FACE_DETECTED.value
     return jsonify({
             'status': 'error',
-            'Code': -1,
+            'Code': error_code,
             'Message': 'Fail to Recognize Face'
         }), 404
 
@@ -328,69 +370,92 @@ def recognizeN_face():
     if 'img' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1002,
+            'Code': RunningCode.MISSING_FILE.value,
             'Message': '缺少图片'
         }), 404
     if 'params' not in json_list:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数'
         }), 404
     params = json_list['params']
     if params.get('reponame',None) is None:
         return jsonify({
             'status': 'error',
-            'Code': 1001,
+            'Code': RunningCode.MISSING_PARAMS.value,
             'Message': '缺少参数reponame'
         }), 404
     image = json_list['img']
     threshold = 0.9
-    identity = params['id']
     reponame = params['reponame']
     
     # 保存临时文件用于检测模型
     temp_path = os.path.join(UPLOAD_FOLDER, "temp_face.jpg")
-    save_base64_to_jpg(image,temp_path)
+    if image == "" or not save_base64_to_jpg(image, temp_path):
+        return jsonify({
+            'status': 'error',
+            'Code': RunningCode.MISSING_FILE.value,
+            'Message': '缺少图片'
+        }), 404
     
-    query_embs = get_embedding(temp_path)
+    query_results = get_embedding(temp_path, return_location=True)
     if os.path.exists(temp_path):
         os.remove(temp_path)
+    
+    face_store_exists = True
     response = []
-    for query_emb in query_embs:
-        code, results = face_es.search_similar_faces(query_emb, reponame, 1)
-        candidate = {}
-        if code.value == 0:
-            candidate['Confidence'] = results[0]['similarity']
-            candidate['Id'] = results[0]['id']
-        else:
-            return jsonify({
-                    'status': 'error',
-                    'Code': code.value,
-                    'Message': 'Fail to recognize face'
-                }), 404
+    for query_result in query_results:
+        query_emb = query_result['embedding']
+        query_loc = query_result['location']
         res = {}
         res['Candidates'] = []
-        res['Candidates'].append(candidate)
-        res['CandidatesCount'] = 1
+        res['CandidatesCount'] = 0
         res['CandidatesMessage'] = ""
         res['Feature'] = ""
         location = {}
-        location['Confidence'] = ''
-        location['Height'] = ''
-        location['LocalFace'] = ''
-        location['Width'] = ''
-        location['X'] = ''
-        location['Y'] = ''
+        location['Confidence'] = query_loc['confidence']
+        location['Height'] = query_loc['height']
+        location['LocalFace'] = query_loc['localface']
+        location['Width'] = query_loc['width']
+        location['X'] = query_loc['x']
+        location['Y'] = query_loc['y']
+        code, results = face_db.search_similar_faces(query_emb, reponame, k=1, threshold=threshold)
+        if code == RunningCode.SUCCESS:
+            for result in results:
+                candidate = {}
+                candidate['Confidence'] = result['similarity']
+                candidate['Id'] = result['id']
+                res['Candidates'].append(candidate)
+                res['CandidatesCount'] += 1
+        else:
+            if code == RunningCode.FACE_STORE_NOT_EXISTS:
+                face_store_exists = False
+            res['Feature'] = query_emb.tolist()
         res['Location'] = location
         response.append(res)
-    return jsonify({
-            'status': 'success',
-            'Code': 0,
-            'Face': response,
-            'Ignore': None
-        }), 200
-  
+
+    if len(query_results) == 0:
+        return jsonify({
+                'status': 'error',
+                'Code': RunningCode.NO_FACE_DETECTED.value,
+                'Face': response,
+                'Ignore': None
+            }), 404
+    elif not face_store_exists:
+        return jsonify({
+                'status': 'error',
+                'Code': RunningCode.FACE_STORE_NOT_EXISTS.value,
+                'Face': response,
+                'Ignore': None
+            }), 404
+    else:
+        return jsonify({
+                'status': 'success',
+                'Code': RunningCode.SUCCESS.value,
+                'Face': response,
+                'Ignore': None
+            }), 200
 
 def init_model():
     if detection_config['mode'] == 'Graph':
@@ -434,28 +499,32 @@ def init_model():
     # 执行预热（通常3-5次）
     for _ in range(3):
         recognition_network(warmup_input)
-        
-    
-    
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='start server')
-    parser.add_argument('--detection_model', default='mobilenet', type=str,
+    parser.add_argument('--detection_model', type=str, default='mobilenet',
                         help='detection model type')
     parser.add_argument('--recognition_model', type=str, default='mobilefacenet',
                         help='recognition model type')
+    parser.add_argument('--database', type=str, choices=['es', 'milvus'], default='milvus', 
+                        help= 'database type')
     args = parser.parse_args()
     
     if args.detection_model == "mobilenet":
         detection_config = read_yaml("detection/configs/RetinaFace_mobilenet025.yaml")
         detection_config['conf'] = 0.9
-        detection_config['val_model'] = "/home/fangwy/pretrained/Fix_RetinaFace_MobileNet025.ckpt"
+        detection_config['val_model'] = "/home/zhangjr/pretrained/RetinaFace_MobileNet025_fixed.ckpt"
     recognition_config = {}
     if args.recognition_model == "mobilefacenet":
         recognition_config["backbone"] = args.recognition_model
-        recognition_config["pretrained"] = "/home/fangwy/pretrained/mobile_casia_ArcFace.ckpt"
-    
+        recognition_config["pretrained"] = "/home/zhangjr/pretrained/mobile_casia_ArcFace.ckpt"
+
+    if args.database == 'es':
+        face_db = FaceEmbeddingES()
+    elif args.database == 'milvus':
+        face_db = FaceEmbeddingMilvus()
+
     init_model()
-    
-    face_es = FaceEmbeddingES()
-    app.run(host='0.0.0.0', port=5666, debug=True)
+
+    app.run(host='0.0.0.0', port=5000, debug=True)

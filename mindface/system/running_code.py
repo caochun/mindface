@@ -1,0 +1,13 @@
+from enum import Enum
+
+class RunningCode(Enum):
+    ES_ERROR = -1
+    SUCCESS = 0
+    MISSING_PARAMS = 1001
+    MISSING_FILE = 1002
+    ID_EXISTS = 1003
+    ID_NOT_FOUND = 1004
+    FACE_STORE_EXISTS = 1005
+    FACE_STORE_NOT_EXISTS = 1006
+    NO_FACE_DETECTED = 1007
+    POOR_FACE_QUALITY = 1008
