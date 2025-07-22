@@ -16,6 +16,7 @@ import argparse
 import numpy as np
 import cv2
 import os
+import base64
 
 from mindspore import Tensor, context
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
@@ -24,7 +25,7 @@ from .utils import prior_box
 from .models import RetinaFace, resnet50, mobilenet025
 from .runner import DetectionEngine, read_yaml
 
-def infer(cfg, network):
+def infer(cfg, network, return_location=False):
     """test one image"""
     # testing image
 
@@ -76,10 +77,11 @@ def infer(cfg, network):
     H, W = img_each.shape[:2]
     crop_count = 1
     box = boxes[0]
-    crop_paths = []
+    results = []
     for box in boxes:
-        if box[4] > conf_test:
-            x, y, w, h = map(int, box[:4])
+        confidence = box[4]
+        if confidence > conf_test:
+            x, y, w, h= map(int, box[:4])
 
             # 边界裁剪，防止越界
             x = max(0, x)
@@ -87,14 +89,33 @@ def infer(cfg, network):
             x2 = min(W, x + w)
             y2 = min(H, y + h)
 
+            actual_width = x2 - x
+            actual_height = y2 - y
             crop = img_each[y:y2, x:x2]
 
             crop_path = f"{os.path.basename(image_path).split('.')[0]}_crop_{crop_count}.jpg"
             cv2.imwrite(crop_path, crop)
             print(f"[✓] Cropped face saved: {crop_path}")
+            
+            if return_location:
+                _, buffer = cv2.imencode('.jpg', crop)
+                face_base64 = base64.b64encode(buffer).decode('utf-8')
+                results.append({
+                    'crop_path': crop_path,
+                    'location': {
+                        'x': x,
+                        'y': y,
+                        'width': actual_width,
+                        'height': actual_height,
+                        'localface': face_base64,
+                        'confidence': float(confidence)
+                    }
+                })
+            else:
+                results.append(crop_path)
+
             crop_count += 1
-            crop_paths.append(crop_path)
-    return crop_paths
+    return results
 
 
 if __name__ == '__main__':

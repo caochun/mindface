@@ -9,19 +9,19 @@ from models import RetinaFace, resnet50, mobilenet025
 from runner import DetectionEngine, read_yaml
 
 def modify_param_keys(checkpoint_path, output_path):
-    """将预训练模型参数key中的所有字母转换为小写"""
+    """Convert all letters in pretrained model parameter keys to lowercase"""
     
-    # 加载原始checkpoint
+    # Load original checkpoint
     param_dict = load_checkpoint(checkpoint_path)
     print(f"Original checkpoint loaded from: {checkpoint_path}")
     print(f"Original parameter count: {len(param_dict)}")
     
-    # 创建新的参数字典
+    # Create new parameter dictionary
     new_param_dict = {}
     
     modified_count = 0
     
-    # 遍历所有参数，将key转换为小写
+    # Iterate through all parameters, convert keys to lowercase
     for old_key, param in param_dict.items():
         new_key = old_key.lower()
         
@@ -34,25 +34,23 @@ def modify_param_keys(checkpoint_path, output_path):
     print(f"Total modified keys: {modified_count}")
     print(f"New parameter count: {len(new_param_dict)}")
     
-    # 保存修复后的checkpoint
+    # Save the fixed checkpoint
     save_checkpoint(new_param_dict, output_path)
     print(f"Modified checkpoint saved to: {output_path}")
     
     return new_param_dict
     
 def main():
-    parser = argparse.ArgumentParser(description='修复预训练模型参数key')
+    parser = argparse.ArgumentParser(description='Fix pretrained model parameter keys')
     parser.add_argument('--input_checkpoint', type=str, required=True,
-                        help='原始checkpoint路径')
+                        help='Original checkpoint path')
     parser.add_argument('--output_checkpoint', type=str, required=True,
-    help='修复后checkpoint保存路径')
-    parser.add_argument('--config', default='mindface/detection/configs/RetinaFace_mobilenet025.yaml', 
-                        type=str, help='配置文件路径')
+                        help='Fixed checkpoint save path')
     
     args = parser.parse_args()
     
-    # 修复参数key
-    print("开始修复参数key...")
+    # Fix parameter keys
+    print("Starting to fix parameter keys...")
     modified_param_dict = modify_param_keys(args.input_checkpoint, args.output_checkpoint)
     
 if __name__ == '__main__':

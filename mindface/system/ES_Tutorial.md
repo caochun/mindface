@@ -148,5 +148,5 @@ sudo bash start-local.sh
 至此，方法一docker直装已经完成es的安装。请注意按照官方文档这是仅用于开发的方法，需求更安全的服务器请在方法二自行配置和官方文档的基础上进行额外设置。
 
 # 方法二 自行配置
-目前先给出elastic官网给出的教程，后续将进行补充。
+以下是elastic官网给出的教程，请参照该内容建立ES服务器。
 https://www.elastic.co/docs/get-started/deployment-optio
