@@ -94,8 +94,7 @@ def train(cfg):
 
     net = RetinaFace(phase='train', backbone=backbone, in_channel=cfg['in_channel'], out_channel=cfg['out_channel'])
     net.set_train(True)
-    for param in net.base.get_parameters():
-        param.requires_grad = False
+    
     if cfg['resume_net'] is not None:
         pretrain_model_path = cfg['resume_net']
         param_dict_retinaface = load_checkpoint(pretrain_model_path)

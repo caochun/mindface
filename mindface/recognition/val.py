@@ -2,12 +2,12 @@
 evaluation of lfw, calfw, cfp_fp, agedb_30, cplfw.
 """
 import datetime
-# import os
+import os
 import pickle
-# import argparse
+import argparse
 from io import BytesIO
-import mxnet as mx
-import moxing as mox
+# import mxnet as mx
+# import moxing as mox
 
 import numpy as np
 import sklearn
@@ -16,10 +16,11 @@ from sklearn.model_selection import KFold
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import mindspore as ms
-# from mindspore.train.serialization import load_checkpoint, load_param_into_net
-# from mindspore import context
+from mindspore.train.serialization import load_checkpoint, load_param_into_net
+from mindspore import context
 
-# from models import iresnet100, iresnet50, get_mbf, vit_t, vit_s, vit_b, vit_l
+from models import iresnet100, iresnet50, get_mbf, vit_t, vit_s, vit_b, vit_l, PartialFC
+from runner import Network
 
 class LFold:
     """
@@ -242,13 +243,13 @@ def test(data_set, backbone, batch_size, nfolds=10):
             time0 = datetime.datetime.now()
             img = ((b_data / 255) - 0.5) / 0.5
             net_out = backbone(ms.Tensor(img, ms.float32))
-            embeddings = net_out.asnumpy()
+            _embeddings = net_out.asnumpy()
             time_now = datetime.datetime.now()
             diff = time_now - time0
             time_consumed += diff.total_seconds()
             if embeddings is None:
-                embeddings = np.zeros((data.shape[0], embeddings.shape[1]))
-            embeddings[ba:bb, :] = embeddings[(batch_size - count):, :]
+                embeddings = np.zeros((data.shape[0], _embeddings.shape[1]))
+            embeddings[ba:bb, :] = _embeddings[(batch_size - count):, :]
             ba = bb
         embeddings_list.append(embeddings)
     xnorm = 0.0
@@ -311,92 +312,95 @@ def EnvToObs(train_dir, obs_train_url):
     except Exception as e:
         print(f"moxing upload {train_dir} to {obs_train_url} failed: {e}")
 
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser(description='do verification')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='do verification')
 
-#     parser.add_argument('--data_url', type=str, default= '/cache/data/',
-#                         help='path where the dataset is saved')
-#     parser.add_argument('--ckpt_url', help='model to save/load',
-#                         default=  '/cache/checkpoint.ckpt')
-#     parser.add_argument('--result_url', help='result folder to save/load',
-#                         default= '/cache/result/')
-#     parser.add_argument('--device_target', type=str, default="Ascend",
-#                         choices=['Ascend', 'GPU', 'CPU'],
-#                         help='device where the code will be implemented (default: Ascend)')
-#     parser.add_argument('--model', default='iresnet50', help='model names')
-#     parser.add_argument('--target', default='lfw,cfp_fp,agedb_30', help='test targets.')
-#     parser.add_argument('--batch-size', default=64, type=int, help='')
-#     parser.add_argument('--num_features', default=512, type=int, help='')
-#     parser.add_argument('--max', default='', type=str, help='')
-#     parser.add_argument('--nfolds', default=10, type=int, help='')
+    parser.add_argument('--data_url', type=str, default= '/cache/data/',
+                        help='path where the dataset is saved')
+    parser.add_argument('--ckpt_url', help='model to save/load',
+                        default=  '/cache/checkpoint.ckpt')
+    parser.add_argument('--result_url', help='result folder to save/load',
+                        default= '/cache/result/')
+    parser.add_argument('--device_target', type=str, default="Ascend",
+                        choices=['Ascend', 'GPU', 'CPU'],
+                        help='device where the code will be implemented (default: Ascend)')
+    parser.add_argument('--model', default='iresnet50', help='model names')
+    parser.add_argument('--target', default='lfw,cfp_fp,agedb_30', help='test targets.')
+    parser.add_argument('--batch-size', default=64, type=int, help='')
+    parser.add_argument('--num_features', default=512, type=int, help='')
+    parser.add_argument('--max', default='', type=str, help='')
+    parser.add_argument('--nfolds', default=10, type=int, help='')
 
-#     args = parser.parse_args()
+    args = parser.parse_args()
 
-#     print(args)
+    print(args)
 
-#     data_dir = args.data_url
-#     result_dir = '.'
-#     ckpt_url = args.ckpt_url
+    data_dir = args.data_url
+    result_dir = '.'
+    ckpt_url = args.ckpt_url
 
-#     device_id = int(os.getenv('DEVICE_ID'))
-#     context.set_context(device_id=device_id, mode=context.GRAPH_MODE,
-#                         device_target=args.device_target)
-#     image_size = [112, 112]
-#     time0 = datetime.datetime.now()
+    device_id = int(os.getenv('DEVICE_ID'))
+    context.set_context(device_id=device_id, mode=context.GRAPH_MODE,
+                        device_target=args.device_target)
+    image_size = [112, 112]
+    time0 = datetime.datetime.now()
 
-#     if args.model == 'iresnet50':
-#         model = iresnet50(num_features=args.num_features)
-#         print("Finish loading iresnet50")
-#     elif args.model == 'iresnet100':
-#         model = iresnet100(num_features=args.num_features)
-#         print("Finish loading iresnet100")
-#     elif args.model == 'mobilefacenet':
-#         model = get_mbf(num_features=args.num_features)
-#         print("Finish loading mobilefacenet")
-#     elif args.model == 'vit_t':
-#         model = vit_t(num_features=args.num_features)
-#         print("Finish loading vit_t")
-#     elif args.model == 'vit_s':
-#         model = vit_s(num_features=args.num_features)
-#         print("Finish loading vit_s")
-#     elif args.model == 'vit_b':
-#         model = vit_b(num_features=args.num_features)
-#         print("Finish loading vit_b")
-#     elif args.model == 'vit_l':
-#         model = vit_l(num_features=args.num_features)
-#         print("Finish loading vit_l")
-#     else:
-#         raise NotImplementedError
+    if args.model == 'iresnet50':
+        model = iresnet50(num_features=args.num_features)
+        print("Finish loading iresnet50")
+    elif args.model == 'iresnet100':
+        model = iresnet100(num_features=args.num_features)
+        print("Finish loading iresnet100")
+    elif args.model == 'mobilefacenet':
+        model = get_mbf(num_features=args.num_features)
+        print("Finish loading mobilefacenet")
+    elif args.model == 'vit_t':
+        model = vit_t(num_features=args.num_features)
+        print("Finish loading vit_t")
+    elif args.model == 'vit_s':
+        model = vit_s(num_features=args.num_features)
+        print("Finish loading vit_s")
+    elif args.model == 'vit_b':
+        model = vit_b(num_features=args.num_features)
+        print("Finish loading vit_b")
+    elif args.model == 'vit_l':
+        model = vit_l(num_features=args.num_features)
+        print("Finish loading vit_l")
+    else:
+        raise NotImplementedError
+    
+    head = PartialFC(num_classes=10572, world_size=1)
+    model = Network(model, head)
+    
+    param_dict = load_checkpoint(ckpt_url)
+    load_param_into_net(model, param_dict)
+    time_now = datetime.datetime.now()
+    diff = time_now - time0
+    print('model loading time', diff.total_seconds())
 
-#     param_dict = load_checkpoint(ckpt_url)
-#     load_param_into_net(model, param_dict)
-#     time_now = datetime.datetime.now()
-#     diff = time_now - time0
-#     print('model loading time', diff.total_seconds())
+    print(args.target.split(','))
 
-#     print(args.target.split(','))
+    ver_list = []
+    ver_name_list = []
+    for name in args.target.split(','):
+        path = os.path.join(data_dir, name + ".bin")
+        if os.path.exists(path):
+            print('loading.. ', name)
+            data_set = load_bin(path, image_size)
+            ver_list.append(data_set)
+            ver_name_list.append(name)
 
-#     ver_list = []
-#     ver_name_list = []
-#     for name in args.target.split(','):
-#         path = os.path.join(data_dir, name + ".bin")
-#         if os.path.exists(path):
-#             print('loading.. ', name)
-#             data_set = load_bin(path, image_size)
-#             ver_list.append(data_set)
-#             ver_name_list.append(name)
+    length = len(ver_list)
+    for i in range(length):
+        acc1, std1, acc2, std2, xnorm, _ = test(
+            ver_list[i], model._backbone, args.batch_size, args.nfolds)
+        print(f"[{ver_name_list[i]}]XNorm: {xnorm}")
+        print(f"'[{ver_name_list[i]}]Accuracy: {acc1:1.5f}+-{std1:1.5f}")
+        print(f"[{ver_name_list[i]}]Accuracy-Flip: {acc2:1.5f}+-%{std2:1.5f}")
 
-#     length = len(ver_list)
-#     for i in range(length):
-#         acc1, std1, acc2, std2, xnorm, _ = test(
-#             ver_list[i], model, args.batch_size, args.nfolds)
-#         print(f"[{ver_name_list[i]}]XNorm: {xnorm}")
-#         print(f"'[{ver_name_list[i]}]Accuracy: {acc1:1.5f}+-{std1:1.5f}")
-#         print(f"[{ver_name_list[i]}]Accuracy-Flip: {acc2:1.5f}+-%{std2:1.5f}")
-
-#     filename = 'result.txt'
-#     file_path = os.path.join(result_dir, filename)
-#     with open(file_path, 'a+') as file:
-#         file.write(f"[{ver_name_list[i]}]XNorm: {xnorm}")
-#         file.write(f"'[{ver_name_list[i]}]Accuracy: {acc1:1.5f}+-{std1:1.5f}")
-#         file.write(f"[{ver_name_list[i]}]Accuracy-Flip: {acc2:1.5f}+-%{std2:1.5f}")
+    filename = 'result.txt'
+    file_path = os.path.join(result_dir, filename)
+    with open(file_path, 'a+') as file:
+        file.write(f"[{ver_name_list[i]}]XNorm: {xnorm}")
+        file.write(f"'[{ver_name_list[i]}]Accuracy: {acc1:1.5f}+-{std1:1.5f}")
+        file.write(f"[{ver_name_list[i]}]Accuracy-Flip: {acc2:1.5f}+-%{std2:1.5f}")

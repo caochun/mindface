@@ -98,6 +98,7 @@ if __name__ == "__main__":
 
     step = train_dataset.get_dataset_size()
     assert step > 0, "Loading dataset error"
+    print(step)
 
     lr = lr_generator(train_info['learning_rate'], train_info['schedule'],
                      train_info['gamma'], train_info['epochs'], steps_per_epoch=step)
@@ -119,13 +120,14 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    if train_info["resume"]:
-        param_dict = load_checkpoint(train_info["resume"])
-        load_param_into_net(net, param_dict)
-
     head = PartialFC(num_classes=train_info["num_classes"], world_size=device_num)
 
     train_net = Network(net, head)
+
+    if train_info["resume"]:
+        param_dict = load_checkpoint(train_info["resume"])
+        load_param_into_net(net, param_dict)
+        print(f"Resume model from {train_info['resume']}")
 
     loss_func = ArcFace(world_size=device_num)
 

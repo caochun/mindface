@@ -76,7 +76,7 @@ def infer(cfg, network, return_location=False):
 
     H, W = img_each.shape[:2]
     crop_count = 1
-    box = boxes[0]
+
     results = []
     for box in boxes:
         confidence = box[4]

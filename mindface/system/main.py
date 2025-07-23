@@ -57,7 +57,6 @@ def save_base64_to_jpg(base64_str, output_path):
 
 def get_embedding(image_path, return_location=False):
     detection_config['image_path'] = image_path
-    recognition_config = {}
     
     face_results = detection_infer(detection_config, detection_network, return_location)
     if len(face_results) == 0:
