@@ -9,7 +9,6 @@ import mindspore as ms
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 from mindspore import context
 
-
 def infer(img, model):
     """
     The inference of arcface.
@@ -31,7 +30,6 @@ def infer(img, model):
         pass
     elif len(img.shape) == 3:
         img = img.expand_dims(axis=0)
-    import time
     net_out = model(img)
     embeddings = net_out.asnumpy()
 
